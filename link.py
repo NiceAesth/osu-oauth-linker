@@ -1,4 +1,4 @@
-import config
+import config, aiohttp, datetime
 from sanic import Sanic, response
 from sanic_motor import BaseModel
 from pymongo import ReturnDocument
@@ -17,6 +17,18 @@ async def checkAES():
         keyfile.close()
     return key
 
+async def generate_tokens(code):
+    async with aiohttp.ClientSession() as cs:
+        async with cs.post('https://osu.ppy.sh/oauth/token', params={
+            'client_id': config.CLIENT_ID,
+            'client_secret': config.CLIENT_SECRET,
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': config.CALLBACK_URL
+        }) as r:
+            res = await r.json()
+            return int(res['expires_in']), res['access_token'], res['refresh_token']
+
 app = Sanic(__name__)
 
 settings = {
@@ -32,7 +44,7 @@ fernetModel = None
 
 class Authorization(BaseModel):
     __coll__ = 'oauth'
-    __unique_fields__ = ['code, secret']
+    __unique_fields__ = ['code, expires_on, access_token, refresh_token']
 
 @app.listener('before_server_start')
 async def setup_encryption(app, loop):
@@ -51,13 +63,20 @@ async def main(request):
     try:
 
         state_string = ''.join(request.args['state'])
+        code = ''.join(request.args['code'])
         secret = fernetModel.decrypt(state_string.encode())
         stringified_secret = secret.decode()
+
+        expires_in, access_token, refresh_token = await generate_tokens(code)
+        expires_on = datetime.datetime.now() + datetime.timedelta(seconds=expires_in)
+
         auth = await Authorization.find_one_and_update(
             {'secret': stringified_secret},
             {
                 '$set': {
-                    'code': ''.join(request.args['code'])
+                    'expires_on': expires_on,
+                    'access_token': access_token,
+                    'refresh_token': refresh_token
                 }
             },
             return_document = ReturnDocument.AFTER
@@ -97,8 +116,7 @@ async def create_auth_request(request):
             "$set": obj
         }, upsert=True)
 
-        url = r"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri=https://callback.aesth.dev&response_type=code&scope=identify&state="
-        return response.json({'encrypted_secret': stringified_secret, 'url': url + stringified_secret})
+        return response.json({'encrypted_secret': stringified_secret, 'url': f"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri={config.CALLBACK_URL}&response_type=code&scope=identify&state={stringified_secret}"})
     return response.text("You do not have permission to access this endpoint.", status=403)
 
 if __name__ == '__main__':
