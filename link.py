@@ -72,7 +72,7 @@ async def main(request):
 
     if SUCCESS:
         return response.json({'args': request.args, 'success': SUCCESS})
-    return response.json({'success': SUCCESS, "secret": stringified_secret})
+    return response.json({'success': SUCCESS})
 
 @app.route('/create_auth_request')
 async def create_auth_request(request):
@@ -87,7 +87,7 @@ async def create_auth_request(request):
 
     if passkey == config.APP_PASSKEY:
         secret = fernetModel.encrypt(discordID.encode())
-        stringified_secret = str(secret)
+        stringified_secret = str(secret.decode())
 
         obj = {
             'secret': discordID
@@ -98,7 +98,7 @@ async def create_auth_request(request):
         }, upsert=True)
 
         url = r"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri=https://callback.aesth.dev&response_type=code&scope=identify&state="
-        return response.json({'encrypted_secret': stringified_secret, 'url': url + stringified_secret.decode()})
+        return response.json({'encrypted_secret': stringified_secret, 'url': url + stringified_secret})
     return response.text("You do not have permission to access this endpoint.", status=403)
 
 if __name__ == '__main__':
