@@ -50,7 +50,7 @@ fernetModel = None
 
 class Authorization(BaseModel):
     __coll__ = 'oauth'
-    __unique_fields__ = ['code, expires_on, access_token, refresh_token']
+    __unique_fields__ = ['secret, expires_on, access_token, refresh_token']
 
 @app.listener('before_server_start')
 async def setup_encryption(app, loop):
