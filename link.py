@@ -18,14 +18,20 @@ async def checkAES():
     return key
 
 async def generate_tokens(code):
-    async with aiohttp.ClientSession() as cs:
-        async with cs.post('https://osu.ppy.sh/oauth/token', params={
-            'client_id': config.CLIENT_ID,
-            'client_secret': config.CLIENT_SECRET,
-            'code': code,
-            'grant_type': 'authorization_code',
-            'redirect_uri': config.CALLBACK_URL
-        }) as r:
+
+    data = {
+        'client_id': config.CLIENT_ID,
+        'client_secret': config.CLIENT_SECRET,
+        'code': code,
+        'grant_type': 'authorization_code',
+        'redirect_uri': config.CALLBACK_URL
+    }
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+
+    async with aiohttp.ClientSession(headers=headers) as cs:
+        async with cs.post('https://osu.ppy.sh/oauth/token', data=data) as r:
             res = await r.json()
             return int(res['expires_in']), res['access_token'], res['refresh_token']
 
@@ -116,7 +122,7 @@ async def create_auth_request(request):
             "$set": obj
         }, upsert=True)
 
-        return response.json({'encrypted_secret': stringified_secret, 'url': f"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri={config.CALLBACK_URL}&response_type=code&scope=identify&state={stringified_secret}"})
+        return response.json({'encrypted_secret': stringified_secret, 'url': f"https://osu.ppy.sh/oauth/authorize?client_id={config.CLIENT_ID}&redirect_uri={config.CALLBACK_URL}&response_type=code&scope=identify&state={stringified_secret}"})
     return response.text("You do not have permission to access this endpoint.", status=403)
 
 if __name__ == '__main__':
