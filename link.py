@@ -97,7 +97,8 @@ async def create_auth_request(request):
             "$set": obj
         }, upsert=True)
 
-        return response.json({'encrypted_secret': stringified_secret, 'url': f"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri=https://callback.aesth.dev&response_type=code&scope=identify&state={stringified_secret}"})
+        url = r"https://osu.ppy.sh/oauth/authorize?client_id=4547&redirect_uri=https://callback.aesth.dev&response_type=code&scope=identify&state="
+        return response.json({'encrypted_secret': stringified_secret, 'url': url + stringified_secret.decode()})
     return response.text("You do not have permission to access this endpoint.", status=403)
 
 if __name__ == '__main__':
